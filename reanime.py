@@ -167,7 +167,14 @@ async def top(
 
 @app.get("/schedule")
 async def schedule():
-    return await _get("/api/schedule")
+    try:
+        return await _get("/api/schedule")
+    except HTTPException as exc:
+        if exc.status_code == 404:
+            # The upstream currently does not expose this legacy schedule route.
+            # Keep the rest of the catalogue usable without inventing schedule data.
+            return []
+        raise
 
 
 @app.get("/info/{slug}")
