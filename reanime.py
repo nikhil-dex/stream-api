@@ -14,7 +14,7 @@ from fastapi.middleware.cors import CORSMiddleware
 BASE = "https://reanime.cz"
 FLIX = "https://flixcloud.cc"
 _UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
-HEADERS = {"User-Agent": _UA, "Accept": "application/json, */*"}
+HEADERS = {"User-Agent": _UA, "Accept": "application/json, text/plain, */*", "Accept-Language": "en-US,en;q=0.9", "Referer": f"{BASE}/home", "Sec-Fetch-Dest": "empty", "Sec-Fetch-Mode": "cors", "Sec-Fetch-Site": "same-origin"}
 _DECRYPT_MJS = str(Path(__file__).parent / "decrypt.mjs")
 
 _client: Optional[httpx.AsyncClient] = None
@@ -85,7 +85,7 @@ async def get_stream_url(access_id: str, v: int = 2) -> dict:
 
 
 async def _servers(slug: str, ep: int, anilist_id: Optional[int] = None) -> dict:
-    watch = await _get(f"/api/watch/{slug}/{ep}")
+    watch = await _get(f"/api/v1/anime/{slug}")
     aid = anilist_id or _anilist_from_anime(watch.get("anime"))
 
     flix: dict = {}
@@ -145,14 +145,14 @@ async def search(
     limit: int = Query(20, ge=1, le=100),
     offset: int = Query(0, ge=0),
 ):
-    return await _get("/api/search", {"q": q, "limit": limit, "offset": offset})
+    return await _get("/api/v1/search", {"q": q, "limit": limit, "offset": offset})
 
 
 @app.get("/home")
 async def home(limit: int = Query(20, ge=1, le=100)):
     latest, top = await asyncio.gather(
-        _get("/api/home/latest-aired", {"limit": limit}),
-        _get("/api/top/anime", {"period": "week", "limit": limit}),
+        _get("/api/v1/home/latest-aired", {"limit": limit}),
+        _get("/api/v1/top/anime", {"period": "week", "limit": limit}),
     )
     return {"latest_aired": latest, "top_weekly": top}
 
@@ -167,14 +167,14 @@ async def top(
 
 @app.get("/schedule")
 async def schedule():
-    return await _get("/api/schedule")
+    return await _get("/api/v1/schedule")
 
 
 @app.get("/info/{slug}")
 async def anime_info(slug: str):
     meta, eps = await asyncio.gather(
-        _get(f"/api/watch/{slug}/1"),
-        _get(f"/api/episodes/{slug}"),
+        _get(f"/api/v1/anime/{slug}"),
+        _get(f"/api/v1/anime/{slug}/episodes"),
     )
     anime = meta.get("anime") or {}
     anilist_id = _anilist_from_anime(anime)
@@ -213,7 +213,7 @@ async def thumbnails(anilist_id: int):
 
 @app.get("/recommendations/{slug}")
 async def recommendations(slug: str):
-    return await _get(f"/api/anime/{slug}/recommendations")
+    return await _get(f"/api/v1/anime/{slug}/recommendations")
 
 
 if __name__ == "__main__":
