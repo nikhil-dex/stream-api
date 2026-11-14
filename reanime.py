@@ -11,10 +11,10 @@ import httpx
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 
-BASE = "https://reanime.cz"
+BASE = "https://reanime.to"
 FLIX = "https://flixcloud.cc"
 _UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
-HEADERS = {"User-Agent": _UA, "Accept": "application/json, text/plain, */*", "Accept-Language": "en-US,en;q=0.9", "Referer": f"{BASE}/home", "Sec-Fetch-Dest": "empty", "Sec-Fetch-Mode": "cors", "Sec-Fetch-Site": "same-origin"}
+HEADERS = {"User-Agent": _UA, "Accept": "application/json, text/plain, */*", "Accept-Language": "en-US,en;q=0.9"}
 _DECRYPT_MJS = str(Path(__file__).parent / "decrypt.mjs")
 
 _client: Optional[httpx.AsyncClient] = None
@@ -85,7 +85,7 @@ async def get_stream_url(access_id: str, v: int = 2) -> dict:
 
 
 async def _servers(slug: str, ep: int, anilist_id: Optional[int] = None) -> dict:
-    watch = await _get(f"/api/v1/anime/{slug}")
+    watch = await _get(f"/api/watch/{slug}/{ep}")
     aid = anilist_id or _anilist_from_anime(watch.get("anime"))
 
     flix: dict = {}
@@ -152,7 +152,7 @@ async def search(
 async def home(limit: int = Query(20, ge=1, le=100)):
     latest, top = await asyncio.gather(
         _get("/api/v1/home/latest-aired", {"limit": limit}),
-        _get("/api/v1/top/anime", {"period": "week", "limit": limit}),
+        _get("/api/v1/search", {"sort": "popularity_desc", "limit": limit, "offset": 0}),
     )
     return {"latest_aired": latest, "top_weekly": top}
 
@@ -162,19 +162,19 @@ async def top(
     period: str = Query("week", pattern="^(day|week|month)$"),
     limit: int = Query(20, ge=1, le=100),
 ):
-    return await _get("/api/top/anime", {"period": period, "limit": limit})
+    return await _get("/api/v1/search", {"sort": "popularity_desc", "limit": limit, "offset": 0})
 
 
 @app.get("/schedule")
 async def schedule():
-    return await _get("/api/v1/schedule")
+    return await _get("/api/schedule")
 
 
 @app.get("/info/{slug}")
 async def anime_info(slug: str):
     meta, eps = await asyncio.gather(
         _get(f"/api/v1/anime/{slug}"),
-        _get(f"/api/v1/anime/{slug}/episodes"),
+        _get(f"/api/v1/anime/{slug}/episodes", {"limit": 2000}),
     )
     anime = meta.get("anime") or {}
     anilist_id = _anilist_from_anime(anime)
@@ -184,7 +184,7 @@ async def anime_info(slug: str):
 
 @app.get("/episodes/{slug}")
 async def episodes(slug: str):
-    data = await _get(f"/api/episodes/{slug}")
+    data = await _get(f"/api/v1/anime/{slug}/episodes", {"limit": 2000})
     return data if isinstance(data, list) else data.get("data", data.get("episodes", data))
 
 
