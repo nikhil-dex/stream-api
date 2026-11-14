@@ -166,15 +166,13 @@ async def top(
 
 
 @app.get("/schedule")
-async def schedule():
-    try:
-        return await _get("/api/schedule")
-    except HTTPException as exc:
-        if exc.status_code == 404:
-            # The upstream currently does not expose this legacy schedule route.
-            # Keep the rest of the catalogue usable without inventing schedule data.
-            return []
-        raise
+async def schedule(
+    tz: str = Query("Asia/Calcutta", min_length=1, max_length=64),
+    week: int = Query(0, ge=0, le=8),
+):
+    # ReAnime v1 exposes the weekly airing feed here. The legacy /api/schedule
+    # route returns 404 and silently returning [] hides the real integration bug.
+    return await _get("/api/v1/schedule", {"tz": tz, "week": week})
 
 
 @app.get("/info/{slug}")
